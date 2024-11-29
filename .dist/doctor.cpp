@@ -48,15 +48,18 @@ class DoctorTable{
         fstream fileSecondaryIndex;
     public:
         DoctorTable() {
+            // Create file if it doesn't exist
             ofstream output("doctors.txt", ios::app);
             output.close();
             char READAVAILLIST[5];
+            // Read AVAILLIST if it exists
             file.open("doctors.txt", ios::in);
             file.getline(READAVAILLIST, 5);
             if (strlen(READAVAILLIST) > 0) {
                 AVAILLIST = stoi(READAVAILLIST);
             }
             file.close();
+            // Write AVAILLIST if it doesn't exist
             file.open("doctors.txt", ios::in | ios::out);
             file.seekp(0, ios::beg);
             file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
@@ -66,9 +69,26 @@ class DoctorTable{
             return AVAILLIST;
         }
         void AddDoctor(Doctor d) {
-            file.open("doctors.txt", ios::app | ios::out);
-            file << setw(2) << setfill('0') << d.getLength();
+            file.open("doctors.txt", ios::in | ios::out);
+            file.seekp(0, ios::end);
+            file << setw(2) << setfill('0') << right << d.getLength();
             file << d.getID() << '|' << d.getName() << '|' << d.getAddress() << '\n';
             file.close();
+        }
+        Doctor ReadDoctorRecord(int byteOffset) {
+            char doc_id[15] = {' '};
+            char doc_name[30] = {' '};
+            char doc_address[30] = {' '};
+            char strlength[2];
+            int length;
+            file.open("doctors.txt", ios::in);
+            file.seekg(byteOffset, ios::beg);
+            file.read(strlength, 2);
+            length = stoi(strlength);
+            file.getline(doc_id, 15, '|');
+            file.getline(doc_name, 30, '|');
+            file.getline(doc_address, 30, '\n');
+            file.close();
+            return Doctor(doc_id, doc_name, doc_address);
         }
 };
