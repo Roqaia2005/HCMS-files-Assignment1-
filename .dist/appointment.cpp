@@ -3,6 +3,7 @@
 #include <fstream>
 #include <cstring>
 #include <map>
+#include "doctor.cpp"
 using namespace std;
 
 class Appointment{
@@ -48,64 +49,80 @@ class AppointmentTable{
         fstream file;
         fstream filePrimaryIndex;
         fstream fileSecondaryIndex;
+        DoctorTable* dt;
 
-    void initializeFiles() {
-        initializeRecordFile();
-        initializePrimaryIndexFile();
-    }
-
-    void initializeRecordFile() {
-        // Create file if it doesn't exist
-        ofstream output("appointments.txt", ios::app);
-        output.close();
-        char READAVAILLIST[5];
-        // Read AVAILLIST if it exists
-        file.open("appointments.txt", ios::in);
-        file.getline(READAVAILLIST, 5);
-        if (strlen(READAVAILLIST) > 0) {
-            AVAILLIST = stoi(READAVAILLIST);
+        void initializeFiles() {
+            initializeRecordFile();
+            initializePrimaryIndexFile();
         }
-        file.close();
-        // Write AVAILLIST if it doesn't exist
-        file.open("appointments.txt", ios::in | ios::out);
-        file.seekp(0, ios::beg);
-        file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
-        file.close();
-    }
-    
 
-    void initializePrimaryIndexFile() {
-        // Create file if it doesn't exist
-        ofstream output("appointmentsPI.txt", ios::app);
-        output.close();
-        // Read primary index into the map
-        file.open("appointmentsPI.txt", ios::in);
-        string line;
-        while (getline(file, line)) {
-            string app_id;
-            string byteOffset;
-            int i = 0;
-            while (line[i] != '|') {
-                app_id += line[i];
-                i++;
+        void initializeRecordFile() {
+            // Create file if it doesn't exist
+            ofstream output("appointments.txt", ios::app);
+            output.close();
+            char READAVAILLIST[5];
+            // Read AVAILLIST if it exists
+            file.open("appointments.txt", ios::in);
+            file.getline(READAVAILLIST, 5);
+            if (strlen(READAVAILLIST) > 0) {
+                AVAILLIST = stoi(READAVAILLIST);
             }
-            i++;
-            while (i < line.length()) {
-                byteOffset += line[i];
-                i++;
-            }
-            primaryIndex[app_id] = stoi(byteOffset);
+            file.close();
+            // Write AVAILLIST if it doesn't exist
+            file.open("appointments.txt", ios::in | ios::out);
+            file.seekp(0, ios::beg);
+            file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
+            file.close();
         }
-    }
+
+        void initializePrimaryIndexFile() {
+            // Create file if it doesn't exist
+            ofstream output("appointmentsPI.txt", ios::app);
+            output.close();
+
+            // Read primary index into the map
+            filePrimaryIndex.open("appointmentsPI.txt", ios::in);
+            string line;
+            while (getline(filePrimaryIndex, line)) {
+                string app_id;
+                string byteOffset;
+                int i = 0;
+                while (line[i] != '|') {
+                    app_id += line[i];
+                    i++;
+                }
+                i++;
+                while (i < line.length()) {
+                    byteOffset += line[i];
+                    i++;
+                }
+                primaryIndex[app_id] = stoi(byteOffset);
+            }
+            filePrimaryIndex.close();
+        }
     public:
-        map <string , int> primaryIndex;
-        AppointmentTable() {
+        // Should be changed to a new class that can access primary index file using binary search
+        // and sort file.
+        map<string, int> primaryIndex;
+        AppointmentTable(DoctorTable* dt) {
+            this->dt = dt;
             initializeFiles();
         }
         int getAVAILLIST() {
             return AVAILLIST;
         }
+        void setAVAILLIST(int n) {
+            AVAILLIST = n;
+            file.open("appointments.txt", ios::in | ios::out);
+            file.seekp(0, ios::beg);
+            file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
+            file.close();
+        }
         void addAppointment(Appointment a) {
+            if (dt->primaryIndex.find(a.getDoctorID()) == dt->primaryIndex.end()) {
+                cout << "Secondary key Doctor ID doesn't exist.";
+                return;
+            }
             int byteOffset = addAppointmentRecord(a);
             addAppointmentPrimaryIndex(a , byteOffset);
         }
@@ -132,7 +149,7 @@ class AppointmentTable{
             string app_name;
             string doc_id;
             file.open("appointments.txt", ios::in);
-            file.seekg(byteOffset+2, ios::beg);
+            file.seekg(byteOffset + 2, ios::beg);
             getline(file, app_id, '|');
             getline(file, app_name, '|');
             getline(file, doc_id, '\n');
@@ -140,11 +157,13 @@ class AppointmentTable{
             return Appointment(app_id, app_name, doc_id);
         }
         void sortPrimaryIndex() {
-            filePrimaryIndex.open("appointmentsPI.txt", ios::in | ios::out);
-            filePrimaryIndex.seekp(0, ios::beg);
-            for (auto i = primaryIndex.begin(); i != primaryIndex.end(); i++) {
-                filePrimaryIndex << i->first << '|' << i->second << '\n';
-            }
-            filePrimaryIndex.close();
+            // Code to sort primary index file
+        }
+        void printAppointmentInfo() {
+            string ID;
+            cout << "Enter ID: ";
+            cin >> ID;
+            Appointment info = readAppointmentRecord(primaryIndex[ID]);
+            cout << "Date: " << info.getDate() << ", Doctor ID: " << info.getDoctorID() << "\n";
         }
 };

@@ -75,13 +75,15 @@ class DoctorTable{
             // Create file if it doesn't exist
             ofstream output("doctorsPI.txt", ios::app);
             output.close();
+
+            // Read primary index into the map
             filePrimaryIndex.open("doctorsPI.txt", ios::in);
             string line;
             while (getline(filePrimaryIndex, line)) {
                 string doc_id;
                 string byteOffset;
                 int i = 0;
-                while (line[i] != ' ') {
+                while (line[i] != '|') {
                     doc_id += line[i];
                     i++;
                 }
@@ -92,14 +94,24 @@ class DoctorTable{
                 }
                 primaryIndex[doc_id] = stoi(byteOffset);
             }
+            filePrimaryIndex.close();
         }
     public:
-        map <string , int> primaryIndex;
+        // Should be changed to a new class that can manage accessing primary index file using binary search
+        // and sorting it.
+        map<string, int> primaryIndex;
         DoctorTable() {
             initializeFiles();
         }
         int getAVAILLIST() {
             return AVAILLIST;
+        }
+        void setAVAILLIST(int n) {
+            AVAILLIST = n;
+            file.open("doctors.txt", ios::in | ios::out);
+            file.seekp(0, ios::beg);
+            file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
+            file.close();
         }
         void addDoctor(Doctor d) {
             int byteOffset = addDoctorRecord(d);
@@ -119,7 +131,7 @@ class DoctorTable{
         void addDoctorPrimaryIndex(Doctor d, int byteOffset) {
             filePrimaryIndex.open("doctorsPI.txt", ios::in | ios::out);
             filePrimaryIndex.seekp(0, ios::end);
-            filePrimaryIndex << d.getID() << " " << byteOffset << "\n";
+            filePrimaryIndex << d.getID() << "|" << byteOffset << "\n";
             filePrimaryIndex.close();
             primaryIndex[d.getID()] = byteOffset;
         }
@@ -128,7 +140,7 @@ class DoctorTable{
             string doc_name;
             string doc_address;
             file.open("doctors.txt", ios::in);
-            file.seekg(byteOffset+2, ios::beg);
+            file.seekg(byteOffset + 2, ios::beg);
             getline(file, doc_id, '|');
             getline(file, doc_name, '|');
             getline(file, doc_address, '\n');
@@ -136,11 +148,13 @@ class DoctorTable{
             return Doctor(doc_id, doc_name, doc_address);
         }
         void sortPrimaryIndex() {
-            filePrimaryIndex.open("doctorsPI.txt", ios::in | ios::out);
-            filePrimaryIndex.seekp(0, ios::beg);
-            for (auto i = primaryIndex.begin(); i != primaryIndex.end(); i++) {
-                filePrimaryIndex << i->first << '|' << i->second << '\n';
-            }
-            filePrimaryIndex.close();
+            // Code to sort primary index file
+        }
+        void printDoctorInfo() {
+            string ID;
+            cout << "Enter ID: ";
+            cin >> ID;
+            Doctor info = readDoctorRecord(primaryIndex[ID]);
+            cout << "Name: " << info.getName() << ", Address: " << info.getAddress() << "\n";
         }
 };

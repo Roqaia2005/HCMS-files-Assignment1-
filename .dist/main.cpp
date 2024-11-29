@@ -1,5 +1,4 @@
 #include <iostream>
-#include "doctor.cpp"
 #include "appointment.cpp"
 using namespace std;
 class HealthCareManagementSystem{
@@ -21,10 +20,10 @@ class HealthCareManagementSystem{
     public:
         HealthCareManagementSystem() {
             dt = new DoctorTable();
-            at = new AppointmentTable();
+            at = new AppointmentTable(dt);
         }
         
-        void Run() {
+        void run() {
             char input;
             while (true) {
                 mainMenu();
@@ -39,6 +38,12 @@ class HealthCareManagementSystem{
                     case '2':
                         at->addAppointment(Appointment());
                         break;
+                    case '7':
+                        dt->printDoctorInfo();
+                        break;
+                    case '8':
+                        at->printAppointmentInfo();
+                        break;
                 }
             }
         }
@@ -46,8 +51,8 @@ class HealthCareManagementSystem{
 
 
 int main() {
-    HealthCareManagementSystem HCMS;
-    HCMS.Run();
+    HealthCareManagementSystem* HCMS = new HealthCareManagementSystem();
+    HCMS->run();
 
     return 0;
 }
