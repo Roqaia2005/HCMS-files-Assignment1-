@@ -114,6 +114,10 @@ class DoctorTable{
             file.close();
         }
         void addDoctor(Doctor d) {
+            if (primaryIndex.find(d.getID()) != primaryIndex.end()) {
+                cout << "Primary key Doctor ID already exists.\n";
+                return;
+            }
             int byteOffset = addDoctorRecord(d);
             addDoctorPrimaryIndex(d, byteOffset);
         }

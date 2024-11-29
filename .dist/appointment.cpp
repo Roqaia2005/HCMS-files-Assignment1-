@@ -119,8 +119,12 @@ class AppointmentTable{
             file.close();
         }
         void addAppointment(Appointment a) {
+            if (primaryIndex.find(a.getID()) != primaryIndex.end()) {
+                cout << "Primary key Appointment ID already exists.\n";
+                return;
+            }
             if (dt->primaryIndex.find(a.getDoctorID()) == dt->primaryIndex.end()) {
-                cout << "Secondary key Doctor ID doesn't exist.";
+                cout << "Secondary key Doctor ID doesn't exist.\n";
                 return;
             }
             int byteOffset = addAppointmentRecord(a);
