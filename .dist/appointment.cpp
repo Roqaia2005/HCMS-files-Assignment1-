@@ -47,41 +47,70 @@ class AppointmentTable{
         fstream file;
         fstream filePrimaryIndex;
         fstream fileSecondaryIndex;
+
+    void initializeFiles() {
+        initializeRecordFile();
+        initializePrimaryIndexFile();
+    }
+
+    void initializeRecordFile() {
+        // Create file if it doesn't exist
+        ofstream output("appointments.txt", ios::app);
+        output.close();
+        char READAVAILLIST[5];
+        // Read AVAILLIST if it exists
+        file.open("appointments.txt", ios::in);
+        file.getline(READAVAILLIST, 5);
+        if (strlen(READAVAILLIST) > 0) {
+            AVAILLIST = stoi(READAVAILLIST);
+        }
+        file.close();
+        // Write AVAILLIST if it doesn't exist
+        file.open("appointments.txt", ios::in | ios::out);
+        file.seekp(0, ios::beg);
+        file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
+        file.close();
+    }
+
+    void initializePrimaryIndexFile() {
+        // Create file if it doesn't exist
+        ofstream output("appointmentsPI.txt", ios::app);
+        output.close();
+    }
     public:
         AppointmentTable() {
-            // Create file if it doesn't exist
-            ofstream output("appointments.txt", ios::app);
-            output.close();
-            char READAVAILLIST[5];
-            // Read AVAILLIST if it exists
-            file.open("appointments.txt", ios::in);
-            file.getline(READAVAILLIST, 5);
-            if (strlen(READAVAILLIST) > 0) {
-                AVAILLIST = stoi(READAVAILLIST);
-            }
-            file.close();
-            // Write AVAILLIST if it doesn't exist
-            file.open("appointments.txt", ios::in | ios::out);
-            file.seekp(0, ios::beg);
-            file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
-            file.close();
+            initializeFiles();
         }
         int getAVAILLIST() {
             return AVAILLIST;
         }
         void addAppointment(Appointment a) {
+            int byteOffset = addAppointmentRecord(a);
+            addAppointmentPrimaryIndex(a , byteOffset);
+        }
+        int addAppointmentRecord(Appointment a) {
+            int byteOffset;
             file.open("appointments.txt", ios::in | ios::out);
             file.seekp(0, ios::end);
             file << setw(2) << setfill('0') << right << a.getLength();
             file << a.getID() << '|' << a.getDate() << '|' << a.getDoctorID() << '\n';
+            byteOffset = file.tellp();
+            byteOffset -= a.getLength() + 3;
             file.close();
+            return byteOffset;
+        }
+        void addAppointmentPrimaryIndex(Appointment a, int byteOffset) {
+            filePrimaryIndex.open("appointmentsPI.txt", ios::in | ios::out);
+            filePrimaryIndex.seekp(0, ios::end);
+            filePrimaryIndex << a.getID() << '|' << byteOffset << '\n';
+            filePrimaryIndex.close();
         }
         Appointment readAppointmentRecord(int byteOffset) {
             string app_id;
             string app_name;
             string doc_id;
             file.open("appointments.txt", ios::in);
-            file.seekg(byteOffset, ios::beg);
+            file.seekg(byteOffset+2, ios::beg);
             getline(file, app_id, '|');
             getline(file, app_name, '|');
             getline(file, doc_id, '\n');

@@ -111,7 +111,7 @@ class DoctorTable{
             string doc_name;
             string doc_address;
             file.open("doctors.txt", ios::in);
-            file.seekg(byteOffset, ios::beg);
+            file.seekg(byteOffset+2, ios::beg);
             getline(file, doc_id, '|');
             getline(file, doc_name, '|');
             getline(file, doc_address, '\n');
