@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <map>
 using namespace std;
 class Doctor{
     private:
@@ -74,11 +75,26 @@ class DoctorTable{
             // Create file if it doesn't exist
             ofstream output("doctorsPI.txt", ios::app);
             output.close();
-            
-            // Read record file and fill primary index file
-
+            filePrimaryIndex.open("doctorsPI.txt", ios::in);
+            string line;
+            while (getline(filePrimaryIndex, line)) {
+                string doc_id;
+                string byteOffset;
+                int i = 0;
+                while (line[i] != ' ') {
+                    doc_id += line[i];
+                    i++;
+                }
+                i++;
+                while (i < line.length()) {
+                    byteOffset += line[i];
+                    i++;
+                }
+                primaryIndex[doc_id] = stoi(byteOffset);
+            }
         }
     public:
+        map <string , int> primaryIndex;
         DoctorTable() {
             initializeFiles();
         }
@@ -105,6 +121,7 @@ class DoctorTable{
             filePrimaryIndex.seekp(0, ios::end);
             filePrimaryIndex << d.getID() << " " << byteOffset << "\n";
             filePrimaryIndex.close();
+            primaryIndex[d.getID()] = byteOffset;
         }
         Doctor readDoctorRecord(int byteOffset) {
             string doc_id;
@@ -117,5 +134,13 @@ class DoctorTable{
             getline(file, doc_address, '\n');
             file.close();
             return Doctor(doc_id, doc_name, doc_address);
+        }
+        void sortPrimaryIndex() {
+            filePrimaryIndex.open("doctorsPI.txt", ios::in | ios::out);
+            filePrimaryIndex.seekp(0, ios::beg);
+            for (auto i = primaryIndex.begin(); i != primaryIndex.end(); i++) {
+                filePrimaryIndex << i->first << '|' << i->second << '\n';
+            }
+            filePrimaryIndex.close();
         }
 };

@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <map>
 using namespace std;
 
 class Appointment{
@@ -71,13 +72,33 @@ class AppointmentTable{
         file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
         file.close();
     }
+    
 
     void initializePrimaryIndexFile() {
         // Create file if it doesn't exist
         ofstream output("appointmentsPI.txt", ios::app);
         output.close();
+        // Read primary index into the map
+        file.open("appointmentsPI.txt", ios::in);
+        string line;
+        while (getline(file, line)) {
+            string app_id;
+            string byteOffset;
+            int i = 0;
+            while (line[i] != '|') {
+                app_id += line[i];
+                i++;
+            }
+            i++;
+            while (i < line.length()) {
+                byteOffset += line[i];
+                i++;
+            }
+            primaryIndex[app_id] = stoi(byteOffset);
+        }
     }
     public:
+        map <string , int> primaryIndex;
         AppointmentTable() {
             initializeFiles();
         }
@@ -104,6 +125,7 @@ class AppointmentTable{
             filePrimaryIndex.seekp(0, ios::end);
             filePrimaryIndex << a.getID() << '|' << byteOffset << '\n';
             filePrimaryIndex.close();
+            primaryIndex[a.getID()] = byteOffset;
         }
         Appointment readAppointmentRecord(int byteOffset) {
             string app_id;
@@ -116,5 +138,13 @@ class AppointmentTable{
             getline(file, doc_id, '\n');
             file.close();
             return Appointment(app_id, app_name, doc_id);
+        }
+        void sortPrimaryIndex() {
+            filePrimaryIndex.open("appointmentsPI.txt", ios::in | ios::out);
+            filePrimaryIndex.seekp(0, ios::beg);
+            for (auto i = primaryIndex.begin(); i != primaryIndex.end(); i++) {
+                filePrimaryIndex << i->first << '|' << i->second << '\n';
+            }
+            filePrimaryIndex.close();
         }
 };
