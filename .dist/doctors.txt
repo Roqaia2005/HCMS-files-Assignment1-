@@ -1,5 +1,0 @@
-80|1               |roqaia                        |addressroqaia               
-80|2               |maya                          |addressmaya                 
-80|3               |nada                          |addressnada                 
-80|4               |ahmed                         |addressahmed                
-80|5               |youssef                       |addressyoussef              
