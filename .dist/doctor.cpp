@@ -6,37 +6,37 @@ using namespace std;
 class Doctor{
     private:
         int doctor_length;
-        char doctor_id[15] = {' '};
-        char doctor_name[30] = {' '};
-        char doctor_address[30] = {' '};
+        string doctor_id;
+        string doctor_name;
+        string doctor_address;
     public:
-        char* getID() {
+        string getID() {
             return doctor_id;
         }
-        char* getName() {
+        string getName() {
             return doctor_name;
         }
-        char* getAddress() {
+        string getAddress() {
             return doctor_address;
         }
         int getLength() {
             return doctor_length;
         }
         Doctor(string id, string name, string address) {
-            strcpy(doctor_id, id.c_str());
-            strcpy(doctor_name, name.c_str());
-            strcpy(doctor_address, address.c_str());
-            doctor_length = strlen(doctor_id) + strlen(doctor_name) + strlen(doctor_address) + 2;
+            doctor_id = id;
+            doctor_name = name;
+            doctor_address = address;
+            doctor_length = doctor_id.length() + doctor_name.length() + doctor_address.length() + 2;
         }
         Doctor() {
             cin.ignore();
             cout << "Enter ID: ";
-            cin.getline(doctor_id, 15);
+            getline(cin, doctor_id);
             cout << "Enter Name: ";
-            cin.getline(doctor_name, 30);
+            getline(cin, doctor_name);
             cout << "Enter Address: ";
-            cin.getline(doctor_address, 30);
-            doctor_length = strlen(doctor_id) + strlen(doctor_name) + strlen(doctor_address) + 2;
+            getline(cin, doctor_address);
+            doctor_length = doctor_id.length() + doctor_name.length() + doctor_address.length() + 2;
         }
 };
 
@@ -46,11 +46,15 @@ class DoctorTable{
         fstream file;
         fstream filePrimaryIndex;
         fstream fileSecondaryIndex;
-    public:
-        DoctorTable() {
+        void initializeFiles() {
+            initializeRecordFile();
+            initializePrimaryIndexFile();
+        }
+        void initializeRecordFile() {
             // Create file if it doesn't exist
             ofstream output("doctors.txt", ios::app);
             output.close();
+
             char READAVAILLIST[5];
             // Read AVAILLIST if it exists
             file.open("doctors.txt", ios::in);
@@ -59,35 +63,58 @@ class DoctorTable{
                 AVAILLIST = stoi(READAVAILLIST);
             }
             file.close();
+
             // Write AVAILLIST if it doesn't exist
             file.open("doctors.txt", ios::in | ios::out);
             file.seekp(0, ios::beg);
             file << setw(5) << setfill(' ') << left << AVAILLIST << '\n';
             file.close();
         }
+        void initializePrimaryIndexFile() {
+            // Create file if it doesn't exist
+            ofstream output("doctorsPI.txt", ios::app);
+            output.close();
+            
+            // Read record file and fill primary index file
+
+        }
+    public:
+        DoctorTable() {
+            initializeFiles();
+        }
         int getAVAILLIST() {
             return AVAILLIST;
         }
-        void AddDoctor(Doctor d) {
+        void addDoctor(Doctor d) {
+            int byteOffset = addDoctorRecord(d);
+            addDoctorPrimaryIndex(d, byteOffset);
+        }
+        int addDoctorRecord(Doctor d) {
+            int byteOffset;
             file.open("doctors.txt", ios::in | ios::out);
             file.seekp(0, ios::end);
             file << setw(2) << setfill('0') << right << d.getLength();
             file << d.getID() << '|' << d.getName() << '|' << d.getAddress() << '\n';
+            byteOffset = file.tellp();
+            byteOffset -= d.getLength() + 3;
             file.close();
+            return byteOffset;
         }
-        Doctor ReadDoctorRecord(int byteOffset) {
-            char doc_id[15] = {' '};
-            char doc_name[30] = {' '};
-            char doc_address[30] = {' '};
-            char strlength[2];
-            int length;
+        void addDoctorPrimaryIndex(Doctor d, int byteOffset) {
+            filePrimaryIndex.open("doctorsPI.txt", ios::in | ios::out);
+            filePrimaryIndex.seekp(0, ios::end);
+            filePrimaryIndex << d.getID() << " " << byteOffset << "\n";
+            filePrimaryIndex.close();
+        }
+        Doctor readDoctorRecord(int byteOffset) {
+            string doc_id;
+            string doc_name;
+            string doc_address;
             file.open("doctors.txt", ios::in);
             file.seekg(byteOffset, ios::beg);
-            file.read(strlength, 2);
-            length = stoi(strlength);
-            file.getline(doc_id, 15, '|');
-            file.getline(doc_name, 30, '|');
-            file.getline(doc_address, 30, '\n');
+            getline(file, doc_id, '|');
+            getline(file, doc_name, '|');
+            getline(file, doc_address, '\n');
             file.close();
             return Doctor(doc_id, doc_name, doc_address);
         }

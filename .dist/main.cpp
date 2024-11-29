@@ -34,13 +34,10 @@ class HealthCareManagementSystem{
                 }
                 switch (input) {
                     case '1':
-                        dt->AddDoctor(Doctor());
+                        dt->addDoctor(Doctor());
                         break;
                     case '2':
-                        at->AddAppointment(Appointment());
-                        break;
-                    case 't':
-                        dt->AddDoctor(dt->ReadDoctorRecord(7));
+                        at->addAppointment(Appointment());
                         break;
                 }
             }
