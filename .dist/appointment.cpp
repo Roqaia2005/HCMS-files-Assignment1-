@@ -54,6 +54,7 @@ class AppointmentTable{
         void initializeFiles() {
             initializeRecordFile();
             initializePrimaryIndexFile();
+            initializeSecondaryIndexFile();
         }
 
         void initializeRecordFile() {
@@ -100,10 +101,36 @@ class AppointmentTable{
             }
             filePrimaryIndex.close();
         }
+        void initializeSecondaryIndexFile() {
+            // Create file if it doesn't exist
+            ofstream output("appointmentsSI.txt", ios::app);
+            output.close();
+
+            // Read primary index into the map
+            fileSecondaryIndex.open("appointmentsSI.txt", ios::in);
+            string line;
+            while (getline(fileSecondaryIndex, line)) {
+                string doc_id;
+                string app_id;
+                int i = 0;
+                while (line[i] != '|') {
+                    doc_id += line[i];
+                    i++;
+                }
+                i++;
+                while (i < line.length()) {
+                    app_id += line[i];
+                    i++;
+                }
+                secondaryIndexOnDoctorID[doc_id].push_back(app_id);
+            }
+            fileSecondaryIndex.close();
+        }
     public:
         // Should be changed to a new class that can access primary index file using binary search
         // and sort file.
         map<string, int> primaryIndex;
+        map<string, vector<string>> secondaryIndexOnDoctorID;
         AppointmentTable(DoctorTable* dt) {
             this->dt = dt;
             initializeFiles();
@@ -129,6 +156,7 @@ class AppointmentTable{
             }
             int byteOffset = addAppointmentRecord(a);
             addAppointmentPrimaryIndex(a , byteOffset);
+            addAppointmentSecondaryIndex(a);
         }
         int addAppointmentRecord(Appointment a) {
             int byteOffset;
@@ -147,6 +175,13 @@ class AppointmentTable{
             filePrimaryIndex << a.getID() << '|' << byteOffset << '\n';
             filePrimaryIndex.close();
             primaryIndex[a.getID()] = byteOffset;
+        }
+        void addAppointmentSecondaryIndex(Appointment a) {
+            fileSecondaryIndex.open("appointmentsSI.txt", ios::in | ios::out);
+            fileSecondaryIndex.seekp(0, ios::end);
+            fileSecondaryIndex << a.getDoctorID() << '|' << a.getID() << '\n';
+            fileSecondaryIndex.close();
+            secondaryIndexOnDoctorID[a.getDoctorID()].push_back(a.getID());
         }
         Appointment readAppointmentRecord(int byteOffset) {
             string app_id;

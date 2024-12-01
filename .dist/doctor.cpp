@@ -3,6 +3,7 @@
 #include <fstream>
 #include <cstring>
 #include <map>
+#include <vector>
 using namespace std;
 class Doctor{
     private:
@@ -50,6 +51,7 @@ class DoctorTable{
         void initializeFiles() {
             initializeRecordFile();
             initializePrimaryIndexFile();
+            initializeSecondaryIndexFile();
         }
         void initializeRecordFile() {
             // Create file if it doesn't exist
@@ -96,10 +98,36 @@ class DoctorTable{
             }
             filePrimaryIndex.close();
         }
+        void initializeSecondaryIndexFile() {
+            // Create file if it doesn't exist
+            ofstream output("doctorsSI.txt", ios::app);
+            output.close();
+
+            // Read secondary index into the map
+            fileSecondaryIndex.open("doctorsSI.txt", ios::in);
+            string line;
+            while (getline(fileSecondaryIndex, line)) {
+                string doc_name;
+                string doc_id;
+                int i = 0;
+                while (line[i] != '|') {
+                    doc_name += line[i];
+                    i++;
+                }
+                i++;
+                while (i < line.length()) {
+                    doc_id += line[i];
+                    i++;
+                }
+                secondaryIndexOnName[doc_name].push_back(doc_id);
+            }
+            fileSecondaryIndex.close();
+        }
     public:
         // Should be changed to a new class that can manage accessing primary index file using binary search
         // and sorting it.
         map<string, int> primaryIndex;
+        map<string, vector<string>> secondaryIndexOnName;
         DoctorTable() {
             initializeFiles();
         }
@@ -120,6 +148,7 @@ class DoctorTable{
             }
             int byteOffset = addDoctorRecord(d);
             addDoctorPrimaryIndex(d, byteOffset);
+            addDoctorSecondaryIndex(d);
         }
         int addDoctorRecord(Doctor d) {
             int byteOffset;
@@ -138,6 +167,13 @@ class DoctorTable{
             filePrimaryIndex << d.getID() << "|" << byteOffset << "\n";
             filePrimaryIndex.close();
             primaryIndex[d.getID()] = byteOffset;
+        }
+        void addDoctorSecondaryIndex(Doctor d) {
+            fileSecondaryIndex.open("doctorsSI.txt", ios::in | ios::out);
+            fileSecondaryIndex.seekp(0, ios::end);
+            fileSecondaryIndex << d.getName() << "|" << d.getID() << "\n";
+            fileSecondaryIndex.close();
+            secondaryIndexOnName[d.getName()].push_back(d.getID());
         }
         Doctor readDoctorRecord(int byteOffset) {
             string doc_id;
