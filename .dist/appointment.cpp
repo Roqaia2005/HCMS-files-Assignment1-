@@ -221,6 +221,14 @@ class AppointmentTable{
             fileSecondaryIndex = AppointmentSecondaryIndexFile("appointmentsSI.txt");
             initializeFiles();
         }
+
+        AppointmentPrimaryIndexFile* getPrimaryIndexFile() {
+            return &filePrimaryIndex;
+        }
+
+       AppointmentFile* getFile() {
+            return &file;
+        }
         void addAppointment(Appointment a) {
             if (filePrimaryIndex.exists(a.getID())) {
                 cout << "Primary key Appointment ID already exists.\n";
