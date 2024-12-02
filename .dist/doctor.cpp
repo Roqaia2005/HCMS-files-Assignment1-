@@ -227,6 +227,11 @@ class DoctorTable{
         DoctorPrimaryIndexFile* getPrimaryIndexFile() {
             return &filePrimaryIndex;
         }
+
+       DoctorFile* getFile() {
+           return &file;
+       }
+
         void addDoctor(Doctor d) {
             if (filePrimaryIndex.exists(d.getID())) {
                 cout << "Primary key Doctor ID already exists.\n";
