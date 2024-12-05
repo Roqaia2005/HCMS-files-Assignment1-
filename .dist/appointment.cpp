@@ -68,10 +68,10 @@ class AppointmentFile {
             // Create file if it doesn't exist
             ofstream output(fileName, ios::app);
             output.close();
-            char READAVAILLIST[5];
+            char READAVAILLIST[6];
             // Read AVAILLIST if it exists
             file.open(fileName, ios::in);
-            file.getline(READAVAILLIST, 5);
+            file.getline(READAVAILLIST, 6);
             if (strlen(READAVAILLIST) > 0) {
                 AVAILLIST = stoi(READAVAILLIST);
             }
@@ -84,14 +84,83 @@ class AppointmentFile {
         }
         int addAppointmentRecord(Appointment a) {
             int byteOffset;
+            int offset = -1;
+            int prevOffset;
+            char prevAVAIL[6];
+            char currAVAIL[6];
+            char prevRecordLength[3];
+            char currRecordLength[3];
+
             file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << setw(2) << setfill('0') << right << a.getLength();
-            file << a.getID() << '|' << a.getDate() << '|' << a.getDoctorID() << '\n';
-            byteOffset = file.tellp();
-            byteOffset -= a.getLength() + 3;
+            if (getAVAILLIST() == -1) {
+                offset = -1;
+                file.close();
+            }
+            else {
+                file.seekg(getAVAILLIST() + 1);
+                file.getline(currAVAIL, 6, '|');
+                file.getline(currRecordLength, 3, '|');
+                if (a.getLength() <= stoi(currRecordLength)) {
+                    offset = getAVAILLIST();
+                    file.close();
+                    setAVAILLIST(stoi(currAVAIL));
+                }
+                else {
+                    prevOffset = getAVAILLIST() + 1;
+                    strcpy(prevAVAIL, currAVAIL);
+                    strcpy(prevRecordLength, currRecordLength);
+                    while (true) {
+                        if (stoi(currAVAIL) == -1) {
+                            file.close();
+                            break;
+                        }
+                        file.seekg(stoi(currAVAIL) + 1);
+                        file.getline(currAVAIL, 6, '|');
+                        file.getline(currRecordLength, 3, '|');
+                        if (a.getLength() <= stoi(currRecordLength)) {
+                            offset = stoi(prevAVAIL);
+                            file.seekp(prevOffset);
+                            file << currAVAIL << "|" << prevRecordLength << "|";
+                            file.close();
+                            break;
+                        }
+                        prevOffset = stoi(prevAVAIL) + 1;
+                        strcpy(prevAVAIL, currAVAIL);
+                        strcpy(prevRecordLength, currRecordLength);
+                    }
+                }
+            }
+
+            file.open(fileName, ios::in | ios::out);
+            if (offset != -1) {
+                file.seekp(offset, ios::beg);
+                file << setw(2) << setfill('0') << right << currRecordLength;
+                file << a.getID() << '|' << a.getDate() << '|' << a.getDoctorID();
+                for (int i = 0; i < stoi(currRecordLength) - a.getLength(); i++)
+                    file << ' ';
+                byteOffset = file.tellp();
+                byteOffset -= stoi(currRecordLength) + 2;
+            }
+            else {
+                file.seekp(0, ios::end);
+                file << setw(2) << setfill('0') << right << a.getLength();
+                file << a.getID() << '|' << a.getDate() << '|' << a.getDoctorID() << '\n';
+                byteOffset = file.tellp();
+                byteOffset -= a.getLength() + 3;
+            }
+            
             file.close();
             return byteOffset;
+        }
+        void deleteAppointmentRecord(int byteOffset) {
+            char recordLength[3];
+            file.open(fileName, ios::in | ios::out);
+            file.seekg(byteOffset, ios::beg);
+            file.read(recordLength, 2);
+            file.seekp(byteOffset, ios::beg);
+            file << '*' << getAVAILLIST() << '|' << recordLength << '|';
+            file.close();
+            setAVAILLIST(byteOffset);
         }
         Appointment readAppointmentRecord(int byteOffset) {
             string app_id;
@@ -103,6 +172,9 @@ class AppointmentFile {
             getline(file, app_name, '|');
             getline(file, doc_id, '\n');
             file.close();
+            while (*(doc_id.end() - 1) == ' ') {
+                doc_id.erase(doc_id.end() - 1);
+            }
             return Appointment(app_id, app_name, doc_id);
         }
 };
@@ -110,6 +182,13 @@ class AppointmentPrimaryIndexFile {
     private:
         string fileName;
         fstream file;
+        void fixPrimaryIndexFile() {
+            file.open(fileName, ios::out);
+            for (const auto& [ID, offset] : primaryIndex) {
+                file << ID << "|" << offset << "\n";
+            }
+            file.close();
+        }
     public:
         // Should be changed to a new class that can access primary index file using binary search
         // and sort file.
@@ -146,11 +225,12 @@ class AppointmentPrimaryIndexFile {
             file.close();
         }
         void addAppointmentPrimaryIndex(Appointment a, int byteOffset) {
-            file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << a.getID() << '|' << byteOffset << '\n';
-            file.close();
             primaryIndex[a.getID()] = byteOffset;
+            fixPrimaryIndexFile();
+        }
+        void deleteAppointmentPrimaryIndex(string ID) {
+            primaryIndex.erase(ID);
+            fixPrimaryIndexFile();
         }
         bool exists(string ID) {
             return primaryIndex.find(ID) != primaryIndex.end();
@@ -160,6 +240,17 @@ class AppointmentSecondaryIndexFile {
     private:
         string fileName;
         fstream file;
+        void fixSecondaryIndexFile() {
+            file.open(fileName, ios::out);
+            for (const auto& [Doc_ID, IDs] : secondaryIndexOnDoctorID) {
+                file << Doc_ID << "|";
+                for (const auto& ID : IDs) {
+                    file << ID << "|";
+                }
+                file << "\n";
+            }
+            file.close();
+        }
     public:
         // Should be changed to another type that manages secondary index file
         map<string, vector<string>> secondaryIndexOnDoctorID;
@@ -187,19 +278,28 @@ class AppointmentSecondaryIndexFile {
                 }
                 i++;
                 while (i < line.length()) {
-                    app_id += line[i];
+                    if (line[i] == '|') {
+                        secondaryIndexOnDoctorID[doc_id].push_back(app_id);
+                        app_id = "";
+                    }
+                    else {
+                        app_id += line[i];
+                    }
                     i++;
                 }
-                secondaryIndexOnDoctorID[doc_id].push_back(app_id);
             }
             file.close();
         }
         void addAppointmentSecondaryIndex(Appointment a) {
-            file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << a.getDoctorID() << '|' << a.getID() << '\n';
-            file.close();
             secondaryIndexOnDoctorID[a.getDoctorID()].push_back(a.getID());
+            fixSecondaryIndexFile();
+        }
+        void deleteAppointmentSecondaryIndex(string Doctor_ID,string ID) {
+            secondaryIndexOnDoctorID[Doctor_ID].erase(find(secondaryIndexOnDoctorID[Doctor_ID].begin(), secondaryIndexOnDoctorID[Doctor_ID].end(), ID));
+            if (secondaryIndexOnDoctorID[Doctor_ID].empty()) {
+                secondaryIndexOnDoctorID.erase(Doctor_ID);
+            }
+            fixSecondaryIndexFile();
         }
 };
 class AppointmentTable{
@@ -241,6 +341,29 @@ class AppointmentTable{
             int byteOffset = file.addAppointmentRecord(a);
             filePrimaryIndex.addAppointmentPrimaryIndex(a , byteOffset);
             fileSecondaryIndex.addAppointmentSecondaryIndex(a);
+        }
+        void deleteAppointment(string ID) {
+            if (!filePrimaryIndex.exists(ID)) {
+                cout << "Appointment ID doesn't exist.\n";
+                return;
+            }
+            Appointment a = file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
+            file.deleteAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
+            fileSecondaryIndex.deleteAppointmentSecondaryIndex(a.getDoctorID(), ID);
+            filePrimaryIndex.deleteAppointmentPrimaryIndex(ID);
+        }
+        void updateAppointment(string ID, string Date) {
+            if (filePrimaryIndex.exists(ID)) {
+                cout << "Appointment ID doesn't exist.\n";
+                return;
+            }
+            // file.updateAppointmentRecord(ID, Name);
+            // filePrimaryIndex.updateAppointmentPrimaryIndex(ID, Name);
+            // fileSecondaryIndex.updateAppointmentSecondaryIndex(ID, Name);
+
+        }
+        Appointment getAppointment(string ID) {
+            return file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
         }
         void printAppointmentInfo() {
             string ID;

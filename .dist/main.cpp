@@ -180,19 +180,30 @@ public:
     }
 
     void run() {
-        char input;
+        char choice;
+        string input;
         while (true) {
             mainMenu();
-            cin >> input;
-            if (input == '0') {
+            cin >> choice;
+            if (choice == '0') {
                 break;
             }
-            switch (input) {
+            switch (choice) {
                 case '1':
                     dt->addDoctor(Doctor());
                     break;
                 case '2':
                     at->addAppointment(Appointment());
+                    break;
+                case '5':
+                    cout << "Enter ID: ";
+                    cin >> input;
+                    at->deleteAppointment(input);
+                    break;
+                case '6':
+                    cout << "Enter ID: ";
+                    cin >> input;
+                    dt->deleteDoctor(input);
                     break;
                 case '7':
                     dt->printDoctorInfo();

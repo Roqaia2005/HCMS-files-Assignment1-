@@ -4,6 +4,7 @@
 #include <cstring>
 #include <map>
 #include <vector>
+#include <algorithm>
 using namespace std;
 class Doctor{
     private:
@@ -69,10 +70,10 @@ class DoctorFile {
             ofstream output(fileName, ios::app);
             output.close();
 
-            char READAVAILLIST[5];
+            char READAVAILLIST[6];
             // Read AVAILLIST if it exists
             file.open(fileName, ios::in);
-            file.getline(READAVAILLIST, 5);
+            file.getline(READAVAILLIST, 6);
             if (strlen(READAVAILLIST) > 0) {
                 AVAILLIST = stoi(READAVAILLIST);
             }
@@ -86,14 +87,82 @@ class DoctorFile {
         }
         int addDoctorRecord(Doctor d) {
             int byteOffset;
+            int offset = -1;
+            int prevOffset;
+            char prevAVAIL[6];
+            char currAVAIL[6];
+            char prevRecordLength[3];
+            char currRecordLength[3];
+
             file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << setw(2) << setfill('0') << right << d.getLength();
-            file << d.getID() << '|' << d.getName() << '|' << d.getAddress() << '\n';
-            byteOffset = file.tellp();
-            byteOffset -= d.getLength() + 3;
+            if (getAVAILLIST() == -1) {
+                offset = -1;
+                file.close();
+            }
+            else {
+                file.seekg(getAVAILLIST() + 1);
+                file.getline(currAVAIL, 6, '|');
+                file.getline(currRecordLength, 3, '|');
+                if (d.getLength() <= stoi(currRecordLength)) {
+                    offset = getAVAILLIST();
+                    file.close();
+                    setAVAILLIST(stoi(currAVAIL));
+                }
+                else {
+                    prevOffset = getAVAILLIST() + 1;
+                    strcpy(prevAVAIL, currAVAIL);
+                    strcpy(prevRecordLength, currRecordLength);
+                    while (true) {
+                        if (stoi(currAVAIL) == -1) {
+                            file.close();
+                            break;
+                        }
+                        file.seekg(stoi(currAVAIL) + 1);
+                        file.getline(currAVAIL, 6, '|');
+                        file.getline(currRecordLength, 3, '|');
+                        if (d.getLength() <= stoi(currRecordLength)) {
+                            offset = stoi(prevAVAIL);
+                            file.seekp(prevOffset);
+                            file << currAVAIL << "|" << prevRecordLength << "|";
+                            file.close();
+                            break;
+                        }
+                        prevOffset = stoi(prevAVAIL) + 1;
+                        strcpy(prevAVAIL, currAVAIL);
+                        strcpy(prevRecordLength, currRecordLength);
+                    }
+                }
+            }
+
+            file.open(fileName, ios::in | ios::out);
+            if (offset != -1) {
+                file.seekp(offset, ios::beg);
+                file << setw(2) << setfill('0') << right << currRecordLength;
+                file << d.getID() << '|' << d.getName() << '|' << d.getAddress();
+                for (int i = 0; i < stoi(currRecordLength) - d.getLength(); i++)
+                    file << ' ';
+                byteOffset = file.tellp();
+                byteOffset -= stoi(currRecordLength) + 2;
+            }
+            else {
+                file.seekp(0, ios::end);
+                file << setw(2) << setfill('0') << right << d.getLength();
+                file << d.getID() << '|' << d.getName() << '|' << d.getAddress() << '\n';
+                byteOffset = file.tellp();
+                byteOffset -= d.getLength() + 3;
+            }
             file.close();
             return byteOffset;
+        }
+        void deleteDoctorRecord(int byteOffset) {
+            char recordLength[3];
+            file.open(fileName, ios::in | ios::out);
+            file.seekg(byteOffset, ios::beg);
+            file.read(recordLength, 2);
+            file.seekp(byteOffset, ios::beg);
+            file << '*' << getAVAILLIST() << '|' << recordLength << '|';
+            file.close();
+            setAVAILLIST(byteOffset);
         }
         Doctor readDoctorRecord(int byteOffset) {
             string doc_id;
@@ -105,6 +174,9 @@ class DoctorFile {
             getline(file, doc_name, '|');
             getline(file, doc_address, '\n');
             file.close();
+            while (*(doc_address.end() - 1) == ' ') {
+                doc_address.erase(doc_address.end() - 1);
+            }
             return Doctor(doc_id, doc_name, doc_address);
         }
 };
@@ -113,6 +185,13 @@ class DoctorPrimaryIndexFile {
     private:
         string fileName;
         fstream file;
+        void fixPrimaryIndexFile() {
+            file.open(fileName, ios::out);
+            for (const auto& [ID, offset] : primaryIndex) {
+                file << ID << "|" << offset << "\n";
+            }
+            file.close();
+        }
     public:
         // Should be changed to a new class that can manage accessing primary index file using binary search
         // and sorting it.
@@ -149,11 +228,12 @@ class DoctorPrimaryIndexFile {
             file.close();
         }
         void addDoctorPrimaryIndex(Doctor d, int byteOffset) {
-            file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << d.getID() << "|" << byteOffset << "\n";
-            file.close();
             primaryIndex[d.getID()] = byteOffset;
+            fixPrimaryIndexFile();
+        }
+        void deleteDoctorPrimaryIndex(string ID) {
+            primaryIndex.erase(ID);
+            fixPrimaryIndexFile();
         }
         bool exists(string ID) {
             return primaryIndex.find(ID) != primaryIndex.end();
@@ -164,6 +244,17 @@ class DoctorSecondaryIndexFile {
     private:
         string fileName;
         fstream file;
+        void fixSecondaryIndexFile() {
+            file.open(fileName, ios::out);
+            for (const auto& [Name, IDs] : secondaryIndexOnName) {
+                file << Name << "|";
+                for (const auto& ID : IDs) {
+                    file << ID << "|";
+                }
+                file << "\n";
+            }
+            file.close();
+        }
     public:
         // Should be changed to a new type that manages secondary index file
         map<string, vector<string>> secondaryIndexOnName;
@@ -191,19 +282,28 @@ class DoctorSecondaryIndexFile {
                 }
                 i++;
                 while (i < line.length()) {
-                    doc_id += line[i];
+                    if (line[i] == '|') {
+                        secondaryIndexOnName[doc_name].push_back(doc_id);
+                        doc_id = "";
+                    }
+                    else {
+                        doc_id += line[i];
+                    }
                     i++;
                 }
-                secondaryIndexOnName[doc_name].push_back(doc_id);
             }
             file.close();
         }
         void addDoctorSecondaryIndex(Doctor d) {
-            file.open(fileName, ios::in | ios::out);
-            file.seekp(0, ios::end);
-            file << d.getName() << "|" << d.getID() << "\n";
-            file.close();
             secondaryIndexOnName[d.getName()].push_back(d.getID());
+            fixSecondaryIndexFile();
+        }
+        void deleteDoctorSecondaryIndex(string Name,string ID) {
+            secondaryIndexOnName[Name].erase(find(secondaryIndexOnName[Name].begin(), secondaryIndexOnName[Name].end(), ID));
+            if (secondaryIndexOnName[Name].empty()) {
+                secondaryIndexOnName.erase(Name);
+            }
+            fixSecondaryIndexFile();
         }
 };
 
@@ -240,6 +340,29 @@ class DoctorTable{
             int byteOffset = file.addDoctorRecord(d);
             filePrimaryIndex.addDoctorPrimaryIndex(d, byteOffset);
             fileSecondaryIndex.addDoctorSecondaryIndex(d);
+        }
+        void deleteDoctor(string ID) {
+            if (!filePrimaryIndex.exists(ID)) {
+                cout << "Doctor ID doesn't exist.\n";
+                return;
+            }
+            Doctor d = file.readDoctorRecord(filePrimaryIndex.primaryIndex[ID]);
+            file.deleteDoctorRecord(filePrimaryIndex.primaryIndex[ID]);
+            fileSecondaryIndex.deleteDoctorSecondaryIndex(d.getName() ,ID);
+            filePrimaryIndex.deleteDoctorPrimaryIndex(ID);
+        }
+        void updateDoctor(string ID, string Name) {
+            if (filePrimaryIndex.exists(ID)) {
+                cout << "Doctor ID doesn't exist.\n";
+                return;
+            }
+            // file.updateDoctorRecord(ID, Name);
+            // filePrimaryIndex.updateDoctorPrimaryIndex(ID, Name);
+            // fileSecondaryIndex.updateDoctorSecondaryIndex(ID, Name);
+
+        }
+        Doctor getDoctor(string ID) {
+            return file.readDoctorRecord(filePrimaryIndex.primaryIndex[ID]);
         }
         void printDoctorInfo() {
             string ID;
