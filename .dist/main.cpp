@@ -138,6 +138,7 @@ private:
     void queryAllDoctors() {
         for (const auto& [id, offset] : dt->getPrimaryIndexFile()->primaryIndex) {
             Doctor doc = dt->getFile()->readDoctorRecord(offset);
+            if (!doc.getID().empty() && !doc.getName().empty() && !doc.getAddress().empty())
             cout << "Doctor Record: ID=" << doc.getID() << ", Name=" << doc.getName()
                  << ", Address=" << doc.getAddress() << endl;
         }
@@ -186,53 +187,56 @@ public:
             mainMenu();
             cin >> choice;
             if (choice == '0') {
-                break;
+                break;  // Exit the loop when choice is '0'
             }
-            switch (choice) {
-                case '1':
-                    dt->addDoctor(Doctor());
-                    break;
-                case '2':
-                    at->addAppointment(Appointment());
-                    break;
-               case '3'://update doctor name
-                        cout << "Enter ID";
-                        cin >> input;
-                        cout << "Enter new name\n";
-                        string newname;
-                        cin >> newname;
-                        dt->updateDoctor(input,newname);
-                        break;
-                case '4': //update appointment date
-                    cout << "Enter ID";
-                    cin >> input;
-                    cout << "Enter new date\n";
-                    string newdate;
-                    cin >> newdate;
-                    at->updateAppointment(input, newdate);
-                    break;
-                case '5':
-                    cout << "Enter ID: ";
-                    cin >> input;
-                    at->deleteAppointment(input);
-                    break;
-                case '6':
-                    cout << "Enter ID: ";
-                    cin >> input;
-                    dt->deleteDoctor(input);
-                    break;
-                case '7':
-                    dt->printDoctorInfo();
-                    break;
-                case '8':
-                    at->printAppointmentInfo();
-                    break;
-                case '9':
-                    writeSQLQuery();
-                    break;
+
+            if (choice == '1') {
+                dt->addDoctor(Doctor());
+            }
+            else if (choice == '2') {
+                at->addAppointment(Appointment());
+            }
+            else if (choice == '3') { // Update doctor name
+                cout << "Enter ID: ";
+                cin >> input;
+                cout << "Enter new name: ";
+                string newname;
+                cin >> newname;
+                dt->updateDoctor(input, newname);
+            }
+            else if (choice == '4') { // Update appointment date
+                cout << "Enter ID: ";
+                cin >> input;
+                cout << "Enter new date: ";
+                string newdate;
+                cin >> newdate;
+                at->updateAppointment(input, newdate);
+            }
+            else if (choice == '5') { // Delete appointment
+                cout << "Enter ID: ";
+                cin >> input;
+                at->deleteAppointment(input);
+            }
+            else if (choice == '6') { // Delete doctor
+                cout << "Enter ID: ";
+                cin >> input;
+                dt->deleteDoctor(input);
+            }
+            else if (choice == '7') { // Print doctor info
+                dt->printDoctorInfo();
+            }
+            else if (choice == '8') { // Print appointment info
+                at->printAppointmentInfo();
+            }
+            else if (choice == '9') { // Execute SQL query
+                writeSQLQuery();
+            }
+            else {
+                cout << "Invalid choice! Please try again.\n";
             }
         }
     }
+
 };
 
 int main() {
