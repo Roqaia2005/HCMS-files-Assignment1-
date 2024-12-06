@@ -341,17 +341,17 @@ class AppointmentSecondaryIndexFile {
         }
    void updateAppointmentSecondaryIndex(Appointment appointment, string newDate) {
             // Remove from the current date's entry if it exists
-            if (secondaryIndexOnDate.find(appointment.getDate()) != secondaryIndexOnDate.end()) {
-                secondaryIndexOnDate[appointment.getDate()].erase(
-                    find(secondaryIndexOnDate[appointment.getDate()].begin(),
-                        secondaryIndexOnDate[appointment.getDate()].end(),
+            if (secondaryIndexOnDoctorID.find(appointment.getDate()) != secondaryIndexOnDoctorID.end()) {
+                secondaryIndexOnDoctorID[appointment.getDate()].erase(
+                    find(secondaryIndexOnDoctorID[appointment.getDate()].begin(),
+                        secondaryIndexOnDoctorID[appointment.getDate()].end(),
                         appointment.getID()));
-                if (secondaryIndexOnDate[appointment.getDate()].empty()) {
-                    secondaryIndexOnDate.erase(appointment.getDate());
+                if (secondaryIndexOnDoctorID[appointment.getDate()].empty()) {
+                    secondaryIndexOnDoctorID.erase(appointment.getDate());
                 }
             }
             // Add to the new date entry
-            secondaryIndexOnDate[newDate].push_back(appointment.getID());
+            secondaryIndexOnDoctorID[newDate].push_back(appointment.getID());
             fixSecondaryIndexFile();
         }
 };
