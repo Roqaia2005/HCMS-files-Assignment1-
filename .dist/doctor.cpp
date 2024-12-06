@@ -41,6 +41,11 @@ class Doctor{
             getline(cin, doctor_address);
             doctor_length = doctor_id.length() + doctor_name.length() + doctor_address.length() + 2;
         }
+      void setName(string newName) {
+            doctor_name = newName;
+            // Recalculate the record length when the name is updated
+            doctor_length = doctor_id.length() + doctor_name.length() + doctor_address.length() + 2;
+        }
 };
 
 class DoctorFile {
@@ -179,6 +184,30 @@ class DoctorFile {
             }
             return Doctor(doc_id, doc_name, doc_address);
         }
+      void updateDoctorRecord(int byteOffset, Doctor updatedDoctor) {
+            // Open the file in read-write mode
+            file.open(fileName, ios::in | ios::out);
+            if (!file) {
+                cout << "Error: Unable to open file for updating.\n";
+                return;
+            }
+
+            // Seek to the byte offset where the record is located
+            file.seekp(byteOffset + 2, ios::beg);
+
+            // Write the updated doctor record
+            file << setw(2) << setfill('0') << right << updatedDoctor.getLength();
+            file << updatedDoctor.getID() << '|' << updatedDoctor.getName() << '|' << updatedDoctor.getAddress();
+
+            // Ensure the record has the correct length by padding with spaces if needed
+            int paddingLength = updatedDoctor.getLength() - (updatedDoctor.getID().length() + updatedDoctor.getName().length() + updatedDoctor.getAddress().length() + 2);
+            for (int i = 0; i < paddingLength; i++) {
+                file << ' ';
+            }
+
+            // Close the file
+            file.close();
+        }
 };
 
 class DoctorPrimaryIndexFile {
@@ -237,6 +266,15 @@ class DoctorPrimaryIndexFile {
         }
         bool exists(string ID) {
             return primaryIndex.find(ID) != primaryIndex.end();
+        }
+ int getByteOffset(string ID) {
+            // Check if the ID exists and return the offset if found
+            if (exists(ID)) {
+                return primaryIndex[ID];
+            }
+            else {
+                cout << "it doesn't exsist \n";
+            }
         }
 };
 
@@ -305,6 +343,18 @@ class DoctorSecondaryIndexFile {
             }
             fixSecondaryIndexFile();
         }
+ void updateDoctorSecondaryIndex(Doctor d, string newName) {
+            // Remove from the current name's entry if it exists
+            if (secondaryIndexOnName.find(d.getName()) != secondaryIndexOnName.end()) {
+                secondaryIndexOnName[d.getName()].erase(find(secondaryIndexOnName[d.getName()].begin(), secondaryIndexOnName[d.getName()].end(), d.getID()));
+                if (secondaryIndexOnName[d.getName()].empty()) {
+                    secondaryIndexOnName.erase(d.getName());
+                }
+            }
+            // Add to the new name entry
+            secondaryIndexOnName[newName].push_back(d.getID());
+            fixSecondaryIndexFile();
+        }
 };
 
 class DoctorTable{
@@ -351,15 +401,22 @@ class DoctorTable{
             fileSecondaryIndex.deleteDoctorSecondaryIndex(d.getName() ,ID);
             filePrimaryIndex.deleteDoctorPrimaryIndex(ID);
         }
-        void updateDoctor(string ID, string Name) {
-            if (filePrimaryIndex.exists(ID)) {
+       void updateDoctor(string ID, string newName) {
+            if (!filePrimaryIndex.exists(ID)) {
                 cout << "Doctor ID doesn't exist.\n";
                 return;
             }
-            // file.updateDoctorRecord(ID, Name);
-            // filePrimaryIndex.updateDoctorPrimaryIndex(ID, Name);
-            // fileSecondaryIndex.updateDoctorSecondaryIndex(ID, Name);
 
+            // Read the current Doctor record
+            int byteOffset = filePrimaryIndex.primaryIndex[ID];
+            Doctor currentDoctor = file.readDoctorRecord(byteOffset);
+
+            // Update the Doctor record in the file
+            currentDoctor.setName(newName);
+            file.updateDoctorRecord(byteOffset, currentDoctor);
+
+            // Update the secondary index
+            fileSecondaryIndex.updateDoctorSecondaryIndex(currentDoctor, newName);
         }
         Doctor getDoctor(string ID) {
             return file.readDoctorRecord(filePrimaryIndex.primaryIndex[ID]);
