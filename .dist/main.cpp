@@ -195,6 +195,22 @@ public:
                 case '2':
                     at->addAppointment(Appointment());
                     break;
+               case '3'://update doctor name
+                        cout << "Enter ID";
+                        cin >> input;
+                        cout << "Enter new name\n";
+                        string newname;
+                        cin >> newname;
+                        dt->updateDoctor(input,newname);
+                        break;
+                case '4': //update appointment date
+                    cout << "Enter ID";
+                    cin >> input;
+                    cout << "Enter new date\n";
+                    string newdate;
+                    cin >> newdate;
+                    at->updateAppointment(input, newdate);
+                    break;
                 case '5':
                     cout << "Enter ID: ";
                     cin >> input;
