@@ -41,6 +41,11 @@ class Appointment{
             getline(cin, doctor_id);
             app_length = app_id.length() + app_date.length() + doctor_id.length() + 2;
         }
+   void setDate(string newDate) {
+            app_date = newDate;
+            // Recalculate the record length when the date is updated
+            app_length = app_id.length() + app_date.length() + doctor_id.length() + 2;
+        }
 };
 class AppointmentFile {
     private:
@@ -177,6 +182,30 @@ class AppointmentFile {
             }
             return Appointment(app_id, app_name, doc_id);
         }
+        void updateAppointmentRecord(int byteOffset, Appointment updatedAppointment) {
+            // Open the file in read-write mode
+            file.open(fileName, ios::in | ios::out);
+            if (!file) {
+                cout << "Error: Unable to open file for updating.\n";
+                return;
+            }
+
+            // Seek to the byte offset where the record is located
+            file.seekp(byteOffset + 2, ios::beg);
+
+            // Write the updated appointment record
+            file << setw(2) << setfill('0') << right << updatedAppointment.getLength();
+            file << updatedAppointment.getID() << '|' << updatedAppointment.getDate();
+
+            // Ensure the record has the correct length by padding with spaces if needed
+            int paddingLength = updatedAppointment.getLength() - (updatedAppointment.getID().length() + updatedAppointment.getDate().length() + 2);
+            for (int i = 0; i < paddingLength; i++) {
+                file << ' ';
+            }
+
+            // Close the file
+            file.close();
+        }
 };
 class AppointmentPrimaryIndexFile {
     private:
@@ -234,6 +263,15 @@ class AppointmentPrimaryIndexFile {
         }
         bool exists(string ID) {
             return primaryIndex.find(ID) != primaryIndex.end();
+        }
+   int getByteOffset(string ID) {
+            // Check if the ID exists and return the offset if found
+            if (exists(ID)) {
+                return primaryIndex[ID];
+            }
+            else {
+                cout << "it doesn't exsist \n";
+            }
         }
 };
 class AppointmentSecondaryIndexFile {
@@ -301,6 +339,21 @@ class AppointmentSecondaryIndexFile {
             }
             fixSecondaryIndexFile();
         }
+   void updateAppointmentSecondaryIndex(Appointment appointment, string newDate) {
+            // Remove from the current date's entry if it exists
+            if (secondaryIndexOnDate.find(appointment.getDate()) != secondaryIndexOnDate.end()) {
+                secondaryIndexOnDate[appointment.getDate()].erase(
+                    find(secondaryIndexOnDate[appointment.getDate()].begin(),
+                        secondaryIndexOnDate[appointment.getDate()].end(),
+                        appointment.getID()));
+                if (secondaryIndexOnDate[appointment.getDate()].empty()) {
+                    secondaryIndexOnDate.erase(appointment.getDate());
+                }
+            }
+            // Add to the new date entry
+            secondaryIndexOnDate[newDate].push_back(appointment.getID());
+            fixSecondaryIndexFile();
+        }
 };
 class AppointmentTable{
     private:
@@ -352,15 +405,25 @@ class AppointmentTable{
             fileSecondaryIndex.deleteAppointmentSecondaryIndex(a.getDoctorID(), ID);
             filePrimaryIndex.deleteAppointmentPrimaryIndex(ID);
         }
-        void updateAppointment(string ID, string Date) {
-            if (filePrimaryIndex.exists(ID)) {
+        void updateAppointment(string ID, string newDate) {
+            if (!filePrimaryIndex.exists(ID)) {
                 cout << "Appointment ID doesn't exist.\n";
                 return;
             }
-            // file.updateAppointmentRecord(ID, Name);
-            // filePrimaryIndex.updateAppointmentPrimaryIndex(ID, Name);
-            // fileSecondaryIndex.updateAppointmentSecondaryIndex(ID, Name);
 
+            // Read the current Appointment record
+            int byteOffset = filePrimaryIndex.primaryIndex[ID];
+            Appointment currentAppointment = file.readAppointmentRecord(byteOffset);
+
+            // Update the Appointment record's date in the file
+            currentAppointment.setDate(newDate);
+            file.updateAppointmentRecord(byteOffset, currentAppointment);
+
+            // Update the primary index (optional if the ID does not change)
+            filePrimaryIndex.updateAppointmentPrimaryIndex(ID, byteOffset);
+
+            // Update the secondary index
+            fileSecondaryIndex.updateAppointmentSecondaryIndex(currentAppointment, newDate);
         }
         Appointment getAppointment(string ID) {
             return file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
