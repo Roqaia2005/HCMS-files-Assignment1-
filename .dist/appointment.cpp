@@ -182,30 +182,40 @@ class AppointmentFile {
             }
             return Appointment(app_id, app_name, doc_id);
         }
-        void updateAppointmentRecord(int byteOffset, Appointment updatedAppointment) {
-            // Open the file in read-write mode
-            file.open(fileName, ios::in | ios::out);
-            if (!file) {
-                cout << "Error: Unable to open file for updating.\n";
-                return;
-            }
+     void updateAppointmentRecord(int byteOffset, Appointment updatedAppointment) {
+    // Open the file in read-write mode
+    fstream file(fileName, ios::in | ios::out);
+    if (!file) {
+        cout << "Error: Unable to open file for updating.\n";
+        return;
+    }
 
-            // Seek to the byte offset where the record is located
-            file.seekp(byteOffset + 2, ios::beg);
+    // Temporary variables to read the existing record
+    string doctorID, appointmentID, date;
 
-            // Write the updated appointment record
-            file << setw(2) << setfill('0') << right << updatedAppointment.getLength();
-            file << updatedAppointment.getID() << '|' << updatedAppointment.getDate();
+    // Seek to the byte offset and read the existing record
+    file.seekg(byteOffset + 2, ios::beg); // Skip the record length
+    getline(file, appointmentID, '|');   // Read appointment ID
+    getline(file, date, '|');            // Read date
+    getline(file, doctorID, '|');        // Read doctor ID
 
-            // Ensure the record has the correct length by padding with spaces if needed
-            int paddingLength = updatedAppointment.getLength() - (updatedAppointment.getID().length() + updatedAppointment.getDate().length() + 2);
-            for (int i = 0; i < paddingLength; i++) {
-                file << ' ';
-            }
+    // Update only the date field
+    date = updatedAppointment.getDate();
 
-            // Close the file
-            file.close();
-        }
+    // Seek back to the byte offset for writing the updated record
+    file.seekp(byteOffset + 2, ios::beg); // Skip the record length
+    file << setw(2) << setfill('0') << right << updatedAppointment.getLength();
+    file << appointmentID << '|' << date << '|' << doctorID;
+
+    // Ensure the record has the correct length by padding with spaces if needed
+    int paddingLength = updatedAppointment.getLength() - (appointmentID.length() + date.length() + doctorID.length() + 2);
+    for (int i = 0; i < paddingLength; i++) {
+        file << ' ';
+    }
+
+    // Close the file
+    file.close();
+}
 };
 class AppointmentPrimaryIndexFile {
     private:
