@@ -416,7 +416,12 @@ class AppointmentTable{
             string ID;
             cout << "Enter ID: ";
             cin >> ID;
-            Appointment info = file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
-            cout << "Date: " << info.getDate() << ", Doctor ID: " << info.getDoctorID() << "\n";
+            if (filePrimaryIndex.exists(ID)) {
+                Appointment info = file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
+                cout << "Date: " << info.getDate() << ", Doctor ID: " << info.getDoctorID() << "\n";
+            }
+            else {
+                cout << "Appointment ID doesn't exist.\n";
+            }
         }
 };

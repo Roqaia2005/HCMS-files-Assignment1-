@@ -423,8 +423,13 @@ class DoctorTable{
             string ID;
             cout << "Enter ID: ";
             cin >> ID;
-            Doctor info = this->file.readDoctorRecord(this->filePrimaryIndex.primaryIndex[ID]);
-            cout << "Name: " << info.getName() << ", Address: " << info.getAddress() << "\n";
+            if (filePrimaryIndex.exists(ID)) {
+                Doctor info = this->file.readDoctorRecord(this->filePrimaryIndex.primaryIndex[ID]);
+                cout << "Name: " << info.getName() << ", Address: " << info.getAddress() << "\n";
+            }
+            else {
+                cout << "Doctor ID doesn't exist\n";
+            }
         }
 };
 
