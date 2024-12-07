@@ -220,7 +220,10 @@ public:
             else if (choice == '6') { // Delete doctor
                 cout << "Enter ID: ";
                 cin >> input;
-                dt->deleteDoctor(input);
+                if (!at->getSecondaryIndexFile()->exists(input))
+                    dt->deleteDoctor(input);
+                else
+                    cout << "Doctor cannot be deleted before deleting their appoinments.";
             }
             else if (choice == '7') { // Print doctor info
                 dt->printDoctorInfo();

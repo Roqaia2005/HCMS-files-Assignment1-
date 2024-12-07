@@ -196,14 +196,7 @@ class DoctorFile {
             file.seekp(byteOffset + 2, ios::beg);
 
             // Write the updated doctor record
-            file << setw(2) << setfill('0') << right << updatedDoctor.getLength();
             file << updatedDoctor.getID() << '|' << updatedDoctor.getName() << '|' << updatedDoctor.getAddress();
-
-            // Ensure the record has the correct length by padding with spaces if needed
-            int paddingLength = updatedDoctor.getLength() - (updatedDoctor.getID().length() + updatedDoctor.getName().length() + updatedDoctor.getAddress().length() + 2);
-            for (int i = 0; i < paddingLength; i++) {
-                file << ' ';
-            }
 
             // Close the file
             file.close();
@@ -222,8 +215,6 @@ class DoctorPrimaryIndexFile {
             file.close();
         }
     public:
-        // Should be changed to a new class that can manage accessing primary index file using binary search
-        // and sorting it.
         map<string, int> primaryIndex;
         DoctorPrimaryIndexFile() {
 
@@ -294,7 +285,6 @@ class DoctorSecondaryIndexFile {
             file.close();
         }
     public:
-        // Should be changed to a new type that manages secondary index file
         map<string, vector<string>> secondaryIndexOnName;
         DoctorSecondaryIndexFile() {
 
@@ -343,16 +333,16 @@ class DoctorSecondaryIndexFile {
             }
             fixSecondaryIndexFile();
         }
- void updateDoctorSecondaryIndex(Doctor d, string newName) {
+        void updateDoctorSecondaryIndex(Doctor d, string oldName) {
             // Remove from the current name's entry if it exists
-            if (secondaryIndexOnName.find(d.getName()) != secondaryIndexOnName.end()) {
-                secondaryIndexOnName[d.getName()].erase(find(secondaryIndexOnName[d.getName()].begin(), secondaryIndexOnName[d.getName()].end(), d.getID()));
-                if (secondaryIndexOnName[d.getName()].empty()) {
-                    secondaryIndexOnName.erase(d.getName());
+            if (secondaryIndexOnName.find(oldName) != secondaryIndexOnName.end()) {
+                secondaryIndexOnName[oldName].erase(find(secondaryIndexOnName[oldName].begin(), secondaryIndexOnName[oldName].end(), d.getID()));
+                if (secondaryIndexOnName[oldName].empty()) {
+                    secondaryIndexOnName.erase(oldName);
                 }
             }
             // Add to the new name entry
-            secondaryIndexOnName[newName].push_back(d.getID());
+            secondaryIndexOnName[d.getName()].push_back(d.getID());
             fixSecondaryIndexFile();
         }
 };
@@ -410,13 +400,21 @@ class DoctorTable{
             // Read the current Doctor record
             int byteOffset = filePrimaryIndex.primaryIndex[ID];
             Doctor currentDoctor = file.readDoctorRecord(byteOffset);
+            string oldName = currentDoctor.getName();
+            int oldLength = currentDoctor.getLength();
 
             // Update the Doctor record in the file
             currentDoctor.setName(newName);
-            file.updateDoctorRecord(byteOffset, currentDoctor);
+            int newLength = currentDoctor.getLength();
 
-            // Update the secondary index
-            fileSecondaryIndex.updateDoctorSecondaryIndex(currentDoctor, newName);
+            if (newLength != oldLength) {
+                deleteDoctor(currentDoctor.getID());
+                addDoctor(currentDoctor);
+            }
+            else {
+                file.updateDoctorRecord(byteOffset, currentDoctor);
+                fileSecondaryIndex.updateDoctorSecondaryIndex(currentDoctor, oldName);
+            }
         }
         Doctor getDoctor(string ID) {
             return file.readDoctorRecord(filePrimaryIndex.primaryIndex[ID]);

@@ -190,28 +190,10 @@ class AppointmentFile {
         return;
     }
 
-    // Temporary variables to read the existing record
-    string doctorID, appointmentID, date;
-
-    // Seek to the byte offset and read the existing record
-    file.seekg(byteOffset + 2, ios::beg); // Skip the record length
-    getline(file, appointmentID, '|');   // Read appointment ID
-    getline(file, date, '|');            // Read date
-    getline(file, doctorID, '|');        // Read doctor ID
-
-    // Update only the date field
-    date = updatedAppointment.getDate();
-
     // Seek back to the byte offset for writing the updated record
-    file.seekp(byteOffset + 2, ios::beg); // Skip the record length
-    file << setw(2) << setfill('0') << right << updatedAppointment.getLength();
-    file << appointmentID << '|' << date << '|' << doctorID;
+    file.seekp(byteOffset + 2, ios::beg);
 
-    // Ensure the record has the correct length by padding with spaces if needed
-    int paddingLength = updatedAppointment.getLength() - (appointmentID.length() + date.length() + doctorID.length() + 2);
-    for (int i = 0; i < paddingLength; i++) {
-        file << ' ';
-    }
+    file << updatedAppointment.getID() << '|' << updatedAppointment.getDate() << '|' << updatedAppointment.getDoctorID();
 
     // Close the file
     file.close();
@@ -229,8 +211,6 @@ class AppointmentPrimaryIndexFile {
             file.close();
         }
     public:
-        // Should be changed to a new class that can access primary index file using binary search
-        // and sort file.
         map<string, int> primaryIndex;
         AppointmentPrimaryIndexFile() {
 
@@ -300,7 +280,6 @@ class AppointmentSecondaryIndexFile {
             file.close();
         }
     public:
-        // Should be changed to another type that manages secondary index file
         map<string, vector<string>> secondaryIndexOnDoctorID;
         AppointmentSecondaryIndexFile() {
 
@@ -349,20 +328,8 @@ class AppointmentSecondaryIndexFile {
             }
             fixSecondaryIndexFile();
         }
-   void updateAppointmentSecondaryIndex(Appointment appointment, string newDate) {
-            // Remove from the current date's entry if it exists
-            if (secondaryIndexOnDoctorID.find(appointment.getDate()) != secondaryIndexOnDoctorID.end()) {
-                secondaryIndexOnDoctorID[appointment.getDate()].erase(
-                    find(secondaryIndexOnDoctorID[appointment.getDate()].begin(),
-                        secondaryIndexOnDoctorID[appointment.getDate()].end(),
-                        appointment.getID()));
-                if (secondaryIndexOnDoctorID[appointment.getDate()].empty()) {
-                    secondaryIndexOnDoctorID.erase(appointment.getDate());
-                }
-            }
-            // Add to the new date entry
-            secondaryIndexOnDoctorID[newDate].push_back(appointment.getID());
-            fixSecondaryIndexFile();
+        bool exists(string Doctor_ID) {
+            return secondaryIndexOnDoctorID.find(Doctor_ID) != secondaryIndexOnDoctorID.end();
         }
 };
 class AppointmentTable{
@@ -387,6 +354,9 @@ class AppointmentTable{
 
         AppointmentPrimaryIndexFile* getPrimaryIndexFile() {
             return &filePrimaryIndex;
+        }
+        AppointmentSecondaryIndexFile* getSecondaryIndexFile() {
+            return &fileSecondaryIndex;
         }
 
        AppointmentFile* getFile() {
@@ -424,16 +394,20 @@ class AppointmentTable{
             // Read the current Appointment record
             int byteOffset = filePrimaryIndex.primaryIndex[ID];
             Appointment currentAppointment = file.readAppointmentRecord(byteOffset);
+            int oldLength = currentAppointment.getLength();
 
             // Update the Appointment record's date in the file
             currentAppointment.setDate(newDate);
-            file.updateAppointmentRecord(byteOffset, currentAppointment);
+            int newLength = currentAppointment.getLength();
 
-            // Update the primary index (optional if the ID does not change)
-            filePrimaryIndex.updateAppointmentPrimaryIndex(ID, byteOffset);
+            if (newLength != oldLength) {
+                deleteAppointment(currentAppointment.getID());
+                addAppointment(currentAppointment);
+            }
+            else {
+                file.updateAppointmentRecord(byteOffset, currentAppointment);
+            }
 
-            // Update the secondary index
-            fileSecondaryIndex.updateAppointmentSecondaryIndex(currentAppointment, newDate);
         }
         Appointment getAppointment(string ID) {
             return file.readAppointmentRecord(filePrimaryIndex.primaryIndex[ID]);
